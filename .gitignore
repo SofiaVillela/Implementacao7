@@ -3,3 +3,10 @@ vm.exe
 *.o
 build/
 out.txt
+
+# arquivos fornecidos pelo professor
+06_vm.docx.pdf
+BACKING_STORE.bin
+addresses.txt
+correct_original.txt
+ref/
