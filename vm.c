@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include "arquivos.h"
 
 int main(int argc, char **argv){
 
@@ -11,37 +12,37 @@ int main(int argc, char **argv){
     }
     char *nomeArquivo = argv[1];
 
-    FILE *file = fopen(nomeArquivo, "r");
-    if(file == NULL){
-        fprintf(stderr, "Erro: nao foi possivel abrir o arquivo %s\n", nomeArquivo);
-        return 1;
-    }
-
+    FILE *file = abrir_arquivo(nomeArquivo, "r");
+    if(file == NULL) return 1;
     char linha[1000];
-    char *fim;
     int contadorLinhas = 0;
-    long endereco_logico;
-    int page;
-    int offset;
+    long enderecoLogico;
+    int page = 0;
+    int offset = 0;
+    int quantidadeTraduzidos = 0;
+
     while(fgets(linha, sizeof(linha), file)){
         contadorLinhas++;
-
-        linha[strcspn(linha, "\r\n")] = '\0';
-        endereco_logico = strtol(linha, &fim, 10);
-
-        while(isspace((unsigned char)*fim)) fim++;
-        if(fim == linha||*fim != '\0' || endereco_logico < 0 || endereco_logico > 65535){
-            fprintf(stderr, "Erro: erro na linha %d, %s\n", contadorLinhas, linha);
-            fclose(file);
-            return 1;
+        int retorno = converter_endereco(linha, &enderecoLogico, &quantidadeTraduzidos);
+        if(retorno != 0){
+            if(retorno == -1){
+                fprintf(stderr, "Erro: erro na linha %d: %s \n", contadorLinhas, linha);
+                fclose(file);
+                return 1;
+            }
+            else if(retorno == 1) continue;
         }
 
-        page = (int) endereco_logico / 256;
-        offset = (int) endereco_logico % 256;
+        page = (int) enderecoLogico / 256;
+        offset = (int) enderecoLogico % 256;
 
-        printf("page: %d \n", page);
-        printf("offset: %d \n", offset);
     }
+    if(quantidadeTraduzidos == 0){
+        fprintf(stderr, "Erro: arquivo nao contem enderecos\n");
+        fclose(file);
+        return 1;
+    }
+    printf("teste pag e offset: %d  %d\n", page, offset);
     fclose(file);
     return 0;
 }
