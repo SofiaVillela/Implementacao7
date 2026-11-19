@@ -57,6 +57,11 @@ int main(int argc, char **argv){
         int offset = (int) enderecoLogico % TAM_PAGE;
 
         if(tabelaPages[page] == -1) {
+            int vitima = tabelaframe[proximoFrame];
+            if(vitima != -1){
+                tabelaPages[vitima] = -1;
+            }
+
             int ler = ler_pagina(backingStore, page, memoria[proximoFrame]);
             if(ler != 0){
                 fechar_arquivo(file, backingStore);
@@ -64,7 +69,9 @@ int main(int argc, char **argv){
             }
 
             tabelaPages[page] = proximoFrame;
+            tabelaframe[proximoFrame] = page ;
             proximoFrame++;
+            if(proximoFrame == NUM_FRAMES) proximoFrame = 0;
             pageFaults++;
         }
 
