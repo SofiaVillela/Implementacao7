@@ -13,7 +13,7 @@ FILE *abrir_arquivo(const char *nomeArquivo, const char *modo){
     return file;
 }
 
-int converter_endereco(char *linha, long *enderecoLogico, int *quantidadeTraduzidos){
+int converter_endereco(char *linha, long *enderecoLogico){
     char *fim;
     char *vazio = linha;
 
@@ -25,24 +25,28 @@ int converter_endereco(char *linha, long *enderecoLogico, int *quantidadeTraduzi
     *enderecoLogico = strtol(linha, &fim, 10);
 
     while(isspace((unsigned char)*fim)) fim++;
-        if(fim == linha||*fim != '\0' || *enderecoLogico < 0 || *enderecoLogico > 65535){
-            return -1;
-        }
+    if(fim == linha||*fim != '\0' || *enderecoLogico < 0 || *enderecoLogico > 65535){
+        return -1;
+    }
 
-    (*quantidadeTraduzidos)++;
     return 0;
 }
 
-int ler_pagina(FILE *backingStore, int page, signed char *memoria){
+int ler_pagina(FILE *backingStore, int page, signed char *frame){
 
     if(fseek(backingStore, page * 256, SEEK_SET) != 0){
         fprintf(stderr, "Erro: erro no fseek\n");
         return -1;
     }
 
-    if(fread(memoria, 1, 256, backingStore) != 256){
+    if(fread(frame, 1, 256, backingStore) != 256){
         fprintf(stderr, "Erro: erro no fread\n");
         return -1;
     }
     return 0;
+}
+
+void fechar_arquivo(FILE *file, FILE *backingStore){
+    fclose(file);
+    fclose(backingStore);
 }
