@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "arquivos.h"
 #include "memoria.h"
 
@@ -11,13 +12,29 @@
 signed char memoria[NUM_FRAMES][TAM_FRAME];
 int tabelaPages[NUM_PAGES];
 int tabelaframe[NUM_FRAMES];
+int ultimoUso[NUM_FRAMES];
 
 int main(int argc, char **argv){
 
-    if(argc != 2){
+    if(argc != 4){
         fprintf(stderr, "Erro: numero de argumentos invalido\n");
         return 1;
     }
+
+    if(strcmp(argv[2],"fifo") != 0 && strcmp(argv[2], "lru") != 0){
+        fprintf(stderr, "Erro: %s (argumento invalido) (use fifo ou lru)\n", argv[2]);
+        return 1;
+    }
+
+    if(strcmp(argv[3],"fifo") != 0 && strcmp(argv[3], "lru") != 0){
+        fprintf(stderr, "Erro: %s (argumento invalido) (use fifo ou lru)\n", argv[3]);
+        return 1;
+    }
+
+    int usarLRU;
+    if(strcmp(argv[2],"fifo") == 0) {
+        usarLRU = 0;
+    } else usarLRU = 1;
     char *nomeArquivo = argv[1];
 
     FILE *file = abrir_arquivo(nomeArquivo, "r");
@@ -33,6 +50,7 @@ int main(int argc, char **argv){
     int quantidadeTraduzidos = 0;
     int proximoFrame = 0;
     int pageFaults = 0;
+    int tempo = 0;
 
     inicializarVetor(tabelaPages, NUM_PAGES, -1);
     inicializarVetor(tabelaframe, NUM_FRAMES, -1);
@@ -57,25 +75,38 @@ int main(int argc, char **argv){
         int offset = (int) enderecoLogico % TAM_PAGE;
 
         if(tabelaPages[page] == -1) {
-            int vitima = tabelaframe[proximoFrame];
+            int frameEscolhido;
+            if( usarLRU == 1 && pageFaults >= NUM_FRAMES ){
+                frameEscolhido = 0;
+                for(int i = 0; i < NUM_FRAMES; i++){
+                    if(ultimoUso[i] < ultimoUso[frameEscolhido]) frameEscolhido = i;
+                }
+
+            } else {
+                frameEscolhido = proximoFrame;
+                proximoFrame++;
+                if(proximoFrame == NUM_FRAMES) proximoFrame = 0;
+            }
+
+            int vitima = tabelaframe[frameEscolhido];
             if(vitima != -1){
                 tabelaPages[vitima] = -1;
             }
 
-            int ler = ler_pagina(backingStore, page, memoria[proximoFrame]);
+            int ler = ler_pagina(backingStore, page, memoria[frameEscolhido]);
             if(ler != 0){
                 fechar_arquivo(file, backingStore);
                 return 1;
             }
 
-            tabelaPages[page] = proximoFrame;
-            tabelaframe[proximoFrame] = page ;
-            proximoFrame++;
-            if(proximoFrame == NUM_FRAMES) proximoFrame = 0;
+            tabelaPages[page] = frameEscolhido;
+            tabelaframe[frameEscolhido] = page ;
             pageFaults++;
         }
 
         int frame = tabelaPages[page];
+        tempo++;
+        ultimoUso[frame] = tempo;
         int enderecoFisico = (frame * TAM_FRAME) + offset;
         signed char valor = memoria[frame][offset];
         printf("Virtual address: %ld Physical address: %d Value: %d\n", enderecoLogico, enderecoFisico, valor);
