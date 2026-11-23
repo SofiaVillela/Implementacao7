@@ -5,6 +5,8 @@
 
 void inicializar_tlb(void);
 
+int tlb_ativa(void);
+
 int buscar_tlb(int pagina);
 
 int entrada_tem_pagina(int slot, int pagina);

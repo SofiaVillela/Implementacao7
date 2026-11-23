@@ -43,8 +43,21 @@ static void imprimir_resumo(int traduzidos, int tlbHits){
     printf("Number of Translated Addresses = %d\n", traduzidos);
     printf("Page Faults = %d\n", pageFaults);
     printf("Page Fault Rate = %.3f\n", (double) pageFaults / traduzidos);
-    printf("TLB Hits = %d\n", tlbHits);
-    printf("TLB Hit Rate = %.3f\n", (double) tlbHits / traduzidos);
+
+    if(tlb_ativa()){
+        printf("TLB Hits = %d\n", tlbHits);
+        printf("TLB Hit Rate = %.3f\n", (double) tlbHits / traduzidos);
+    }
+}
+
+static void imprimir_traducao(long enderecoLogico, int slot, int enderecoFisico, signed char valor){
+    if(tlb_ativa()){
+        printf("Virtual address: %ld TLB: %d Physical address: %d Value: %d\n",
+               enderecoLogico, slot, enderecoFisico, valor);
+    } else {
+        printf("Virtual address: %ld Physical address: %d Value: %d\n",
+               enderecoLogico, enderecoFisico, valor);
+    }
 }
 
 int main(int argc, char **argv){
@@ -102,8 +115,7 @@ int main(int argc, char **argv){
         int enderecoFisico;
         signed char valor;
         traduzir(frame, offset, &enderecoFisico, &valor);
-        printf("Virtual address: %ld TLB: %d Physical address: %d Value: %d\n",
-               enderecoLogico, slot, enderecoFisico, valor);
+        imprimir_traducao(enderecoLogico, slot, enderecoFisico, valor);
     }
 
     if(quantidadeTraduzidos == 0){

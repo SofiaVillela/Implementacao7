@@ -5,8 +5,11 @@
 
 #define TAM_FRAME  256
 #define TAM_PAGE   256
-#define NUM_FRAMES 128
 #define NUM_PAGES  256
+
+#ifndef NUM_FRAMES
+#define NUM_FRAMES 128
+#endif
 
 void inicializarVetor(int *vetor, int tamanho, int valorAdicionar);
 void inicializar_memoria(void);

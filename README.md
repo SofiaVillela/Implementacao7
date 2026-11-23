@@ -25,12 +25,20 @@ Requer `gcc`, `make` e a biblioteca de threads POSIX (Linux, Unix ou macOS).
 ```
 make                  # gera ./vm, com a busca na TLB feita por 16 threads
 make vm_sem_threads   # gera ./vm_sem_threads, com a busca sequencial na TLB
+make vm_sem_tlb       # gera ./vm_sem_tlb, sem TLB, com 128 frames
+make vm_sem_tlb_256   # gera ./vm_sem_tlb_256, sem TLB, com 256 frames
 make clean            # remove os executaveis
 ```
 
-Os dois executaveis usam exatamente o mesmo codigo, exceto a funcao `buscar_tlb`:
-`tlb_busca_threads.c` (uma thread por entrada da TLB) ou `tlb_busca_seq.c`
-(um slot de cada vez).
+Todos usam o mesmo codigo, exceto a parte da TLB, que o Makefile escolhe:
+
+- `vm`: `tlb.c` + `tlb_busca_threads.c` (uma thread por entrada da TLB).
+- `vm_sem_threads`: `tlb.c` + `tlb_busca_seq.c` (um slot de cada vez).
+- `vm_sem_tlb` e `vm_sem_tlb_256`: `tlb_desativada.c` (a TLB nao guarda nada; a traducao
+  sempre passa pela tabela de paginas). A saida nao tem o campo `TLB:` nem as linhas
+  de TLB Hits. O 3o argumento continua sendo exigido, mas e ignorado.
+- Com 256 frames nao ha substituicao de paginas: os page faults sao so as paginas distintas
+  do arquivo (244 em `addresses.txt`).
 
 ## Uso
 
@@ -103,6 +111,7 @@ Linhas em branco no arquivo de enderecos sao ignoradas.
 | `tlb.c` / `tlb.h` | Armazenamento da TLB e substituicao FIFO/LRU de entradas |
 | `tlb_busca_seq.c` | Busca sequencial na TLB (sem threads) |
 | `tlb_busca_threads.c` | Busca na TLB com uma thread por entrada |
+| `tlb_desativada.c` | TLB desligada, usada nos executaveis `vm_sem_tlb` e `vm_sem_tlb_256` |
 | `arquivos.c` / `arquivos.h` | Abertura de arquivos, leitura e validacao dos enderecos, leitura do backing store |
 
 ## Resultados de referencia

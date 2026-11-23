@@ -17,6 +17,10 @@ static void esvaziar_slot(int slot){
     tlbTempo[slot] = -1;
 }
 
+int tlb_ativa(void){
+    return 1;
+}
+
 void inicializar_tlb(void){
     for(int i = 0; i < TAM_TLB; i++){
         esvaziar_slot(i);
