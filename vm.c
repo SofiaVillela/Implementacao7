@@ -2,8 +2,9 @@
 #include <string.h>
 #include "arquivos.h"
 #include "memoria.h"
+#include "tlb.h"
 
-static int validar_argumentos(int argc, char **argv, int *usarLRU){
+static int validar_argumentos(int argc, char **argv, int *usarLRU, int *usarLRUTLB){
     if(argc != 4){
         fprintf(stderr, "Erro: numero de argumentos invalido\n");
         return -1;
@@ -17,12 +18,13 @@ static int validar_argumentos(int argc, char **argv, int *usarLRU){
         return -1;
     }
     *usarLRU = (strcmp(argv[2], "lru") == 0);
+    *usarLRUTLB = (strcmp(argv[3], "lru") == 0);
     return 0;
 }
 
 int main(int argc, char **argv){
-    int usarLRU;
-    if(validar_argumentos(argc, argv, &usarLRU) != 0) return 1;
+    int usarLRU, usarLRUTLB;
+    if(validar_argumentos(argc, argv, &usarLRU, &usarLRUTLB) != 0) return 1;
 
     FILE *file = abrir_arquivo(argv[1], "r");
     if(file == NULL) return 1;
@@ -34,9 +36,11 @@ int main(int argc, char **argv){
     }
 
     inicializar_memoria();
+    inicializar_tlb();
 
     int contadorLinhas = 0;
     int quantidadeTraduzidos = 0;
+    int tlbHits = 0;
     char linha[1000];
 
     while(fgets(linha, sizeof(linha), file)){
@@ -55,17 +59,31 @@ int main(int argc, char **argv){
         int page = (int) enderecoLogico / TAM_PAGE;
         int offset = (int) enderecoLogico % TAM_PAGE;
 
-        if(!pagina_na_memoria(page)){
-            if(carregar_pagina(backingStore, page, usarLRU) != 0){
-                fechar_arquivo(file, backingStore);
-                return 1;
+        int frame;
+        int slot = buscar_tlb(page);
+
+        if(slot != -1){
+            tlbHits++;
+            frame = frame_da_tlb(slot);
+            registrar_acerto_tlb(slot, usarLRUTLB);
+        } else {
+            if(!pagina_na_memoria(page)){
+                int paginaRemovida;
+                if(carregar_pagina(backingStore, page, usarLRU, &paginaRemovida) != 0){
+                    fechar_arquivo(file, backingStore);
+                    return 1;
+                }
+                if(paginaRemovida != -1) invalidar_pagina_tlb(paginaRemovida);
             }
+            frame = frame_da_pagina(page);
+            slot = inserir_tlb(page, frame, usarLRUTLB);
         }
 
         int enderecoFisico;
         signed char valor;
-        traduzir(page, offset, &enderecoFisico, &valor);
-        printf("Virtual address: %ld Physical address: %d Value: %d\n", enderecoLogico, enderecoFisico, valor);
+        traduzir(frame, offset, &enderecoFisico, &valor);
+        printf("Virtual address: %ld TLB: %d Physical address: %d Value: %d\n",
+               enderecoLogico, slot, enderecoFisico, valor);
     }
 
     if(quantidadeTraduzidos == 0){
@@ -74,7 +92,13 @@ int main(int argc, char **argv){
         return 1;
     }
 
-    printf("Page Faults = %d\n", total_page_faults());
+    int pageFaults = total_page_faults();
+    printf("Number of Translated Addresses = %d\n", quantidadeTraduzidos);
+    printf("Page Faults = %d\n", pageFaults);
+    printf("Page Fault Rate = %.3f\n", (double) pageFaults / quantidadeTraduzidos);
+    printf("TLB Hits = %d\n", tlbHits);
+    printf("TLB Hit Rate = %.3f\n", (double) tlbHits / quantidadeTraduzidos);
+
     fechar_arquivo(file, backingStore);
     return 0;
 }

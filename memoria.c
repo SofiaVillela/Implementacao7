@@ -25,6 +25,10 @@ int pagina_na_memoria(int page){
     return tabelaPages[page] != -1;
 }
 
+int frame_da_pagina(int page){
+    return tabelaPages[page];
+}
+
 int escolher_frame(int usarLRU){
     int frameEscolhido;
 
@@ -41,13 +45,14 @@ int escolher_frame(int usarLRU){
     return frameEscolhido;
 }
 
-int carregar_pagina(FILE *backingStore, int page, int usarLRU){
+int carregar_pagina(FILE *backingStore, int page, int usarLRU, int *paginaRemovida){
     int frameEscolhido = escolher_frame(usarLRU);
 
     int vitima = tabelaframe[frameEscolhido];
     if(vitima != -1){
         tabelaPages[vitima] = -1;
     }
+    *paginaRemovida = vitima;
 
     if(ler_pagina(backingStore, page, memoria[frameEscolhido]) != 0){
         return -1;
@@ -59,9 +64,7 @@ int carregar_pagina(FILE *backingStore, int page, int usarLRU){
     return 0;
 }
 
-void traduzir(int page, int offset, int *enderecoFisico, signed char *valor){
-    int frame = tabelaPages[page];
-
+void traduzir(int frame, int offset, int *enderecoFisico, signed char *valor){
     tempo++;
     ultimoUso[frame] = tempo;
 
