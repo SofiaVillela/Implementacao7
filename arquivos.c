@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include "arquivos.h"
+#include "memoria.h"
 
 FILE *abrir_arquivo(const char *nomeArquivo, const char *modo){
     FILE *file = fopen(nomeArquivo, modo);
@@ -34,12 +35,12 @@ int converter_endereco(char *linha, long *enderecoLogico){
 
 int ler_pagina(FILE *backingStore, int page, signed char *frame){
 
-    if(fseek(backingStore, page * 256, SEEK_SET) != 0){
+    if(fseek(backingStore, page * TAM_PAGE, SEEK_SET) != 0){
         fprintf(stderr, "Erro: erro no fseek\n");
         return -1;
     }
 
-    if(fread(frame, 1, 256, backingStore) != 256){
+    if(fread(frame, 1, TAM_PAGE, backingStore) != TAM_PAGE){
         fprintf(stderr, "Erro: erro no fread\n");
         return -1;
     }
