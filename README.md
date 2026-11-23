@@ -51,11 +51,17 @@ Todos usam o mesmo codigo, exceto a parte da TLB, que o Makefile escolhe:
 - 3o argumento: algoritmo de substituicao de entradas da **TLB**.
 
 O arquivo `BACKING_STORE.bin` precisa estar no diretorio onde o programa e executado.
-A saida vai para a tela; para guardar em arquivo, use redirecionamento:
+O resultado completo e gravado em `correct.txt`, no diretorio onde o programa e executado
+(se o arquivo ja existir, ele e sobrescrito). Na tela aparece so o resumo.
+Para comparar com o arquivo do professor (que usa quebra de linha do Windows):
 
 ```
-./vm addresses.txt lru fifo > saida.txt
+./vm addresses.txt lru fifo
+diff --strip-trailing-cr correct.txt correct_original.txt && echo IDENTICO
 ```
+
+O `correct.txt` so e criado depois que o arquivo de enderecos foi validado inteiro.
+Se houver qualquer erro, o programa nao cria nem altera o `correct.txt`.
 
 ### Formato da saida
 
@@ -97,6 +103,8 @@ O programa nao quebra: imprime uma mensagem em `stderr` e termina com codigo 1 q
 - o 2o ou o 3o argumento nao e `fifo` nem `lru`;
 - o arquivo de enderecos nao existe ou nao pode ser aberto;
 - alguma linha do arquivo de enderecos nao e um inteiro entre 0 e 65535;
+- alguma linha do arquivo de enderecos tem mais de 998 caracteres;
+- ocorre uma falha ao ler o arquivo de enderecos ou ao gravar o `correct.txt`;
 - o arquivo de enderecos nao contem nenhum endereco;
 - `BACKING_STORE.bin` nao pode ser aberto ou lido.
 

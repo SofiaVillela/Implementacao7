@@ -3,6 +3,11 @@ vm.exe
 *.o
 build/
 out.txt
+saida.txt
+correct.txt
+vm_sem_threads
+vm_sem_tlb
+vm_sem_tlb_256
 
 # arquivos fornecidos pelo professor
 06_vm.docx.pdf
