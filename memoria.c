@@ -29,20 +29,32 @@ int frame_da_pagina(int page){
     return tabelaPages[page];
 }
 
-int escolher_frame(int usarLRU){
-    int frameEscolhido;
+static int memoria_cheia(void){
+    return pageFaults >= NUM_FRAMES;
+}
 
-    if(usarLRU == 1 && pageFaults >= NUM_FRAMES){
-        frameEscolhido = 0;
-        for(int i = 0; i < NUM_FRAMES; i++){
-            if(ultimoUso[i] < ultimoUso[frameEscolhido]) frameEscolhido = i;
-        }
-    } else {
-        frameEscolhido = proximoFrame;
-        proximoFrame++;
-        if(proximoFrame == NUM_FRAMES) proximoFrame = 0;
+static int escolher_frame_fifo(void){
+    int frame = proximoFrame;
+
+    proximoFrame++;
+    if(proximoFrame == NUM_FRAMES) proximoFrame = 0;
+    return frame;
+}
+
+static int escolher_frame_lru(void){
+    int frame = 0;
+
+    for(int i = 0; i < NUM_FRAMES; i++){
+        if(ultimoUso[i] < ultimoUso[frame]) frame = i;
     }
-    return frameEscolhido;
+    return frame;
+}
+
+int escolher_frame(int usarLRU){
+    if(usarLRU == 1 && memoria_cheia()){
+        return escolher_frame_lru();
+    }
+    return escolher_frame_fifo();
 }
 
 int carregar_pagina(FILE *backingStore, int page, int usarLRU, int *paginaRemovida){

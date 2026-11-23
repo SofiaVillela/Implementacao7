@@ -14,6 +14,17 @@ static void *buscar_no_slot(void *arg){
     return NULL;
 }
 
+static int disparar_thread(pthread_t *thread, ArgBusca *arg, int slot, int pagina){
+    arg->slot = slot;
+    arg->pagina = pagina;
+    arg->achou = 0;
+
+    if(pthread_create(thread, NULL, buscar_no_slot, arg) == 0) return 1;
+
+    buscar_no_slot(arg);
+    return 0;
+}
+
 int buscar_tlb(int pagina){
     pthread_t threads[TAM_TLB];
     ArgBusca args[TAM_TLB];
@@ -21,13 +32,7 @@ int buscar_tlb(int pagina){
     int resultado = -1;
 
     for(int i = 0; i < TAM_TLB; i++){
-        args[i].slot = i;
-        args[i].pagina = pagina;
-        args[i].achou = 0;
-        criada[i] = (pthread_create(&threads[i], NULL, buscar_no_slot, &args[i]) == 0);
-        if(!criada[i]){
-            buscar_no_slot(&args[i]);
-        }
+        criada[i] = disparar_thread(&threads[i], &args[i], i, pagina);
     }
 
     for(int i = 0; i < TAM_TLB; i++){

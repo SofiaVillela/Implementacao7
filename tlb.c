@@ -6,11 +6,20 @@ static int tlbFrame[TAM_TLB];
 static int tlbTempo[TAM_TLB];
 static int relogioTLB = 0;
 
+static int novo_carimbo(void){
+    relogioTLB++;
+    return relogioTLB;
+}
+
+static void esvaziar_slot(int slot){
+    tlbPagina[slot] = -1;
+    tlbFrame[slot] = -1;
+    tlbTempo[slot] = -1;
+}
+
 void inicializar_tlb(void){
     for(int i = 0; i < TAM_TLB; i++){
-        tlbPagina[i] = -1;
-        tlbFrame[i] = -1;
-        tlbTempo[i] = -1;
+        esvaziar_slot(i);
     }
 }
 
@@ -24,32 +33,29 @@ int frame_da_tlb(int slot){
 
 void registrar_acerto_tlb(int slot, int usarLRU){
     if(usarLRU == 1){
-        relogioTLB++;
-        tlbTempo[slot] = relogioTLB;
+        tlbTempo[slot] = novo_carimbo();
     }
 }
 
-int inserir_tlb(int pagina, int frame, int usarLRU){
-    (void) usarLRU;
-
+static int escolher_slot_vitima(void){
     int vitima = 0;
     for(int i = 1; i < TAM_TLB; i++){
         if(tlbTempo[i] < tlbTempo[vitima]) vitima = i;
     }
-
-    relogioTLB++;
-    tlbPagina[vitima] = pagina;
-    tlbFrame[vitima] = frame;
-    tlbTempo[vitima] = relogioTLB;
     return vitima;
+}
+
+int inserir_tlb(int pagina, int frame){
+    int slot = escolher_slot_vitima();
+
+    tlbPagina[slot] = pagina;
+    tlbFrame[slot] = frame;
+    tlbTempo[slot] = novo_carimbo();
+    return slot;
 }
 
 void invalidar_pagina_tlb(int pagina){
     for(int i = 0; i < TAM_TLB; i++){
-        if(tlbPagina[i] == pagina){
-            tlbPagina[i] = -1;
-            tlbFrame[i] = -1;
-            tlbTempo[i] = -1;
-        }
+        if(tlbPagina[i] == pagina) esvaziar_slot(i);
     }
 }
