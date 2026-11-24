@@ -1,78 +1,94 @@
-# Gerenciador de Memoria Virtual
+# Gerenciador de Memória Virtual
 
-Simulador de memoria virtual para a disciplina de Infraestrutura de Software
-(Implementacao 6/7), baseado no projeto "Designing a Virtual Memory Manager" do
-livro *Operating System Concepts* (Silberschatz).
+Implementação em C de um gerenciador de memória virtual com paginação sob demanda,
+tabela de páginas e TLB. Projeto da disciplina **Infraestrutura de Software**,
+baseado no *Designing a Virtual Memory Manager* (Silberschatz, *Operating System
+Concepts*, 10ª ed.).
 
-O programa le enderecos logicos de 16 bits, traduz cada um para o endereco fisico
-usando uma TLB e uma tabela de paginas, e imprime o valor (byte com sinal) lido
-do arquivo `BACKING_STORE.bin`, que simula o disco.
+O programa recebe uma lista de endereços lógicos, traduz cada um para o endereço
+físico correspondente e mostra o byte que está guardado lá.
 
-## Parametros da simulacao
+---
 
-| Item | Valor |
+## A ideia
+
+Um programa enxerga um espaço de memória grande e contínuo (o espaço **lógico**),
+mas a memória **física** é menor. A tradução entre os dois é feita por páginas:
+
+- a memória lógica é dividida em **páginas** e a física em **frames**, todos de 256 bytes;
+- a **tabela de páginas** diz em qual frame cada página está, ou se ela não está na memória;
+- quando o programa acessa uma página que não está na memória, acontece um
+  **page fault**: a página é lida do disco (`BACKING_STORE.bin`) e colocada num frame;
+- a **TLB** é um cache pequeno com as traduções mais recentes, consultado antes da tabela.
+
+| | Quantidade |
 |---|---|
-| Endereco logico | 16 bits (8 bits de pagina + 8 bits de deslocamento) |
-| Tamanho de pagina e de frame | 256 bytes |
-| Paginas virtuais | 256 |
-| Frames fisicos | 128 (preenchidos de 0 a 127; depois disso ha substituicao) |
+| Endereço lógico | 16 bits (0 a 65535) |
+| Páginas | 256, de 256 bytes cada |
+| Frames | 128, de 256 bytes cada |
 | Entradas da TLB | 16 |
 
-## Compilacao
+Como existem 256 páginas e só 128 frames, a memória enche. A partir daí, cada page
+fault precisa escolher uma página para sair: é a **substituição de páginas**.
 
-Requer `gcc`, `make` e a biblioteca de threads POSIX (Linux, Unix ou macOS).
+---
 
-```
-make                  # gera ./vm, com a busca na TLB feita por 16 threads
-make vm_sem_threads   # gera ./vm_sem_threads, com a busca sequencial na TLB
-make vm_sem_tlb       # gera ./vm_sem_tlb, sem TLB, com 128 frames
-make vm_sem_tlb_256   # gera ./vm_sem_tlb_256, sem TLB, com 256 frames
-make clean            # remove os executaveis
-```
+## Compilação
 
-Todos usam o mesmo codigo, exceto a parte da TLB, que o Makefile escolhe:
+Precisa de `gcc`, `make` e `pthread` (Linux, Unix ou macOS).
 
-- `vm`: `tlb.c` + `tlb_busca_threads.c` (uma thread por entrada da TLB).
-- `vm_sem_threads`: `tlb.c` + `tlb_busca_seq.c` (um slot de cada vez).
-- `vm_sem_tlb` e `vm_sem_tlb_256`: `tlb_desativada.c` (a TLB nao guarda nada; a traducao
-  sempre passa pela tabela de paginas). A saida nao tem o campo `TLB:` nem as linhas
-  de TLB Hits. O 3o argumento continua sendo exigido, mas e ignorado.
-- Com 256 frames nao ha substituicao de paginas: os page faults sao so as paginas distintas
-  do arquivo (244 em `addresses.txt`).
-
-## Uso
-
-```
-./vm <arquivo de enderecos> <fifo|lru> <fifo|lru>
+```sh
+make
 ```
 
-- 1o argumento: arquivo com um endereco logico (inteiro decimal, 0 a 65535) por linha.
-- 2o argumento: algoritmo de substituicao de **paginas** na memoria fisica.
-- 3o argumento: algoritmo de substituicao de entradas da **TLB**.
+Gera o executável `vm`. O Makefile também gera versões para os outros fluxos pedidos:
 
-O arquivo `BACKING_STORE.bin` precisa estar no diretorio onde o programa e executado.
-O resultado completo e gravado em `correct.txt`, no diretorio onde o programa e executado
-(se o arquivo ja existir, ele e sobrescrito). Na tela aparece so o resumo.
-Para comparar com o arquivo do professor (que usa quebra de linha do Windows):
+| Comando | Executável | TLB | Frames |
+|---|---|---|---|
+| `make` | `vm` | busca com uma thread por entrada | 128 |
+| `make vm_sem_threads` | `vm_sem_threads` | busca sequencial | 128 |
+| `make vm_sem_tlb` | `vm_sem_tlb` | desligada | 128 |
+| `make vm_sem_tlb_256` | `vm_sem_tlb_256` | desligada | 256 |
+| `make clean` | apaga todos os executáveis | | |
 
+O código é o mesmo nos quatro. O que muda é qual arquivo da TLB entra na compilação
+(`tlb_busca_threads.c`, `tlb_busca_seq.c` ou `tlb_desativada.c`) e, no último, o número
+de frames, passado com `-DNUM_FRAMES=256`.
+
+---
+
+## Execução
+
+```sh
+./vm <arquivo de endereços> <fifo|lru> <fifo|lru>
 ```
+
+- **1º argumento:** arquivo com um endereço lógico por linha.
+- **2º argumento:** algoritmo de substituição de **páginas**.
+- **3º argumento:** algoritmo de substituição da **TLB**.
+
+```sh
 ./vm addresses.txt lru fifo
-diff --strip-trailing-cr correct.txt correct_original.txt && echo IDENTICO
 ```
 
-O `correct.txt` so e criado depois que o arquivo de enderecos foi validado inteiro.
-Se houver qualquer erro, o programa nao cria nem altera o `correct.txt`.
+O `BACKING_STORE.bin` precisa estar na pasta onde o programa roda. O resultado
+completo vai para o arquivo **`correct.txt`**, e na tela aparece só o resumo.
 
-### Formato da saida
+Nos executáveis sem TLB os três argumentos continuam obrigatórios, mas o terceiro
+não é usado.
 
-Uma linha por endereco:
+### Saída
+
+Uma linha por endereço:
 
 ```
 Virtual address: 16916 TLB: 0 Physical address: 20 Value: 0
 ```
 
-O campo `TLB` e o numero do slot (0 a 15): o slot onde a traducao foi encontrada
-(TLB hit) ou onde foi guardada (TLB miss). Depois das linhas vem o resumo:
+- `TLB`: a entrada da TLB (0 a 15) onde a tradução foi encontrada ou guardada;
+- `Value`: o byte lido, **com sinal** (`signed char`), por isso aparecem valores negativos.
+
+E, no final:
 
 ```
 Number of Translated Addresses = 1000
@@ -82,53 +98,123 @@ TLB Hits = 54
 TLB Hit Rate = 0.054
 ```
 
-## Algoritmos de substituicao
+Sem TLB, o campo `TLB:` e as duas últimas linhas não aparecem.
 
-Cada frame (e cada entrada da TLB) guarda um carimbo de tempo, e a vitima e sempre
-o de **menor carimbo**:
+---
 
-- **FIFO:** o carimbo so e gravado quando a pagina (ou traducao) entra. O menor
-  carimbo e o mais antigo.
-- **LRU:** o carimbo tambem e atualizado a cada uso. O menor carimbo e o que ficou
-  mais tempo sem ser usado.
+## Passo a passo de uma tradução
 
-Quando uma pagina e expulsa da memoria fisica, a traducao dela tambem e removida da
-TLB, para a TLB nunca devolver um frame que ja guarda outra pagina.
+Usando o primeiro endereço do `addresses.txt`, **16916**:
 
-## Tratamento de erros
+1. **Separar página e offset.**
+   `16916 / 256 = 66` (página) e `16916 % 256 = 20` (offset, a posição dentro da página).
+2. **Procurar a página 66 na TLB.** No começo ela está vazia: **TLB miss**.
+3. **Consultar a tabela de páginas.** `tabelaPages[66]` vale `-1`: a página não está na
+   memória, então é **page fault**.
+4. **Buscar no disco.** `ler_pagina` faz `fseek` até o byte `66 × 256` do
+   `BACKING_STORE.bin` e lê 256 bytes para o frame livre (o frame 0).
+5. **Atualizar as tabelas.** `tabelaPages[66] = 0` e `tabelaframe[0] = 66`. A tradução
+   também é guardada na TLB.
+6. **Montar o endereço físico.** `0 × 256 + 20 = 20`. Só a página é trocada pelo frame;
+   o offset continua o mesmo.
+7. **Ler o valor** em `memoria[0][20]`.
 
-O programa nao quebra: imprime uma mensagem em `stderr` e termina com codigo 1 quando:
+Se outro endereço da página 66 aparecer depois, ela já está na TLB (ou pelo menos na
+tabela), e não é preciso ir ao disco de novo.
 
-- o numero de argumentos esta errado;
-- o 2o ou o 3o argumento nao e `fifo` nem `lru`;
-- o arquivo de enderecos nao existe ou nao pode ser aberto;
-- alguma linha do arquivo de enderecos nao e um inteiro entre 0 e 65535;
-- alguma linha do arquivo de enderecos tem mais de 998 caracteres;
-- ocorre uma falha ao ler o arquivo de enderecos ou ao gravar o `correct.txt`;
-- o arquivo de enderecos nao contem nenhum endereco;
-- `BACKING_STORE.bin` nao pode ser aberto ou lido.
+---
 
-Linhas em branco no arquivo de enderecos sao ignoradas.
+## Substituição de páginas
 
-## Estrutura do codigo
+O vetor `tabelaframe` guarda o caminho inverso da tabela de páginas (frame → página).
+Ele é usado para saber **qual página está no frame que vai ser reaproveitado**, para
+marcá-la com `-1` na tabela de páginas. Sem isso, a tabela continuaria dizendo que a
+página antiga está num frame que já tem outra.
 
-| Arquivo | Responsabilidade |
+- **FIFO:** sai a página que entrou primeiro. O `proximoFrame` anda em círculo
+  (0, 1, …, 127, 0, 1, …), e como os frames foram preenchidos nessa ordem, ele sempre
+  aponta para o mais antigo.
+- **LRU:** sai a página que está há mais tempo sem ser usada. Um contador `tempo` sobe
+  a cada endereço traduzido e é anotado em `ultimoUso[frame]` em **todo** acesso, com ou
+  sem page fault. A vítima é o frame com o menor `ultimoUso`.
+
+Enquanto ainda há frame livre, os dois fazem a mesma coisa: usam o próximo frame vazio.
+
+Quando uma página sai da memória, a tradução dela também é **apagada da TLB**, senão a
+TLB devolveria um frame que agora guarda outra página.
+
+## Substituição na TLB
+
+Cada entrada da TLB tem um carimbo de tempo, e a que sai é a de menor carimbo. As
+entradas vazias têm `-1`, então são ocupadas primeiro.
+
+- **FIFO:** o carimbo só é gravado quando a tradução entra.
+- **LRU:** o carimbo também é renovado a cada TLB hit.
+
+## Busca na TLB com threads
+
+Numa TLB real, o hardware compara a página com todas as entradas ao mesmo tempo. Para
+simular isso, `tlb_busca_threads.c` cria **16 threads, uma por entrada**. Cada thread olha
+só a sua entrada e escreve o resultado só na sua própria estrutura, então nenhuma disputa
+o mesmo dado e não é preciso mutex. Depois o programa espera todas (`pthread_join`) e vê
+qual encontrou a página.
+
+`tlb_busca_seq.c` faz a mesma busca com um laço comum. As duas versões dão a mesma saída.
+
+---
+
+## Erros tratados
+
+O programa não quebra: mostra uma mensagem de erro e sai com código 1 quando
+
+- o número de argumentos está errado;
+- o 2º ou o 3º argumento não é `fifo` nem `lru`;
+- o arquivo de endereços não existe ou não abre;
+- uma linha não é um número inteiro de 0 a 65535 (`abc`, `12x`, `-5`, `70000`);
+- uma linha é longa demais para o buffer;
+- o arquivo não tem nenhum endereço (vazio ou só com linhas em branco);
+- o `BACKING_STORE.bin` não abre ou não tem a página pedida;
+- há falha ao ler o arquivo de endereços ou ao gravar o `correct.txt`.
+
+Linhas em branco e espaços antes ou depois do número são ignorados.
+
+O arquivo de endereços é conferido inteiro **antes** da tradução. Se tiver erro em
+qualquer linha, o programa para sem criar nem alterar o `correct.txt`, em vez de
+deixar uma saída pela metade.
+
+---
+
+## Organização do código
+
+| Arquivo | O que faz |
 |---|---|
-| `vm.c` | `main`: valida argumentos, le os enderecos, coordena TLB e memoria e imprime |
-| `memoria.c` / `memoria.h` | Memoria fisica, tabela de paginas, page faults e substituicao FIFO/LRU de paginas |
-| `tlb.c` / `tlb.h` | Armazenamento da TLB e substituicao FIFO/LRU de entradas |
-| `tlb_busca_seq.c` | Busca sequencial na TLB (sem threads) |
-| `tlb_busca_threads.c` | Busca na TLB com uma thread por entrada |
-| `tlb_desativada.c` | TLB desligada, usada nos executaveis `vm_sem_tlb` e `vm_sem_tlb_256` |
-| `arquivos.c` / `arquivos.h` | Abertura de arquivos, leitura e validacao dos enderecos, leitura do backing store |
+| `vm.c` | `main`: valida os argumentos, percorre os endereços e coordena TLB, memória e saída |
+| `arquivos.c` / `.h` | abrir arquivos, ler e validar os endereços, ler páginas do `BACKING_STORE.bin` |
+| `memoria.c` / `.h` | memória física, tabela de páginas, page faults, FIFO e LRU de páginas |
+| `tlb.c` / `.h` | entradas da TLB, FIFO e LRU da TLB |
+| `tlb_busca_threads.c` | busca na TLB com 16 threads |
+| `tlb_busca_seq.c` | busca na TLB sem threads |
+| `tlb_desativada.c` | versão "vazia" da TLB, para os executáveis sem TLB |
+| `Makefile` | compila os quatro executáveis e limpa |
 
-## Resultados de referencia
+O estado da memória e da TLB fica em variáveis `static` dentro de `memoria.c` e `tlb.c`.
+O `main` não mexe nelas diretamente, só chama funções.
 
-Com `addresses.txt` (1000 enderecos):
+---
 
-| Pagina | TLB | Page faults | TLB hits |
+## Resultados com `addresses.txt`
+
+| Páginas | TLB | Page faults | TLB hits |
 |---|---|---|---|
 | FIFO | FIFO | 538 | 54 |
+| FIFO | LRU | 538 | 55 |
 | LRU | FIFO | 539 | 54 |
+| LRU | LRU | 539 | 55 |
 
-A saida de `./vm addresses.txt lru fifo` e identica ao arquivo de referencia fornecido.
+- Sem TLB, os page faults são os mesmos (538 com FIFO, 539 com LRU).
+- Com 256 frames são **244**: o número de páginas diferentes no arquivo, já que nenhuma
+  precisa sair da memória.
+- `./vm addresses.txt lru fifo` gera um `correct.txt` idêntico ao de referência do
+  professor.
+- Com esses endereços, que são aleatórios e têm pouca localidade, a LRU não ganha da
+  FIFO.
