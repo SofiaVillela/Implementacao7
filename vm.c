@@ -34,6 +34,7 @@ static int frame_pela_tabela(FILE *backingStore, int page, int usarLRU){
         if(carregar_pagina(backingStore, page, usarLRU, &paginaRemovida) != 0){
             return -1;
         }
+
         if(paginaRemovida != -1) invalidar_pagina_tlb(paginaRemovida);
     }
     return frame_da_pagina(page);
